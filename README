@@ -1,0 +1,88 @@
+PinCushion
+==========
+
+Pin Cushion adds true Multiple Table Inheritance via a simple ActiveRecord::Migration command that is totally agnostic to ActiveRecord.
+
+Pin Cushion was inspired by CITIEsForRAILS http://altrabio.github.com/CITIEsForRAILS/ which is a very nice solution but has some compatibility issues and is potentially sensitive to future changes in ActiveRecord.  Pin Cushion works almost entirely at the database level using views and some advanced database trigger features for INSERT/UPDATE/DELETE commands.
+
+Pin Cushion currently only supports single-level inheritance though multi-level inheritance shouldn't be too difficult to add at a future date.  Pin Cushion is currently only supports PostgreSQL since PostgreSQL allows the interception of INSERT/UPDATE/DELETE calls to overriding triggers (i.e. rules).  Although MySQL supports triggers, it is unknown at this time if it can override INSERT/UPDATE/DELETE calls to the view without throwing an error back to ActiveRecord.  Oracle should also be able to support these capabilities and hopefully someone who is interested in this solution for their Oracle tables will help add that in.  Pin Cushion would likely not support NoSQL solutions which is likely fine since Pin Cushion addresses designs more likely seen in relational systems.
+
+Example
+=======
+
+# Parent Table ActiveRecord Migration
+CreateParentTable < ActiveRecord::Migration
+  def self.up
+    create_table :users do |t|
+      t.string, :givenname
+      t.string, :surname
+      t.string, :type
+      t.timestamps
+    end
+  end
+
+  def self.down
+    drop_table :users
+  end
+end
+
+# Child Table ActiveRecord Migration
+CreateChildTable < ActiveRecord::Migration
+  def self.up
+    create_table :email_users, :id => false  do |t|
+      t.string, :email
+      t.integer, :user_id
+    end
+
+    # Here is the simple to use declaration to create all the multiple table inheritance structures and functions in the database
+    CreateMTIFor(EmailUser)
+  end
+
+  def self.down
+    DropMTIFor(EmailUser)
+    drop_table :email_users
+  end
+end
+
+
+# The parent class
+class User < ActiveRecord::Base
+end
+
+# The child class
+# A view is created by Pin Cushion with the intended table name prefixed with view_
+# This is simple enough to not warrant an "acts_as_..." mixin
+class EmailUser < User
+  set_table_name "view_email_users"
+end
+
+After migrations are run, the two tables should look like one under the child model:
+
+> user = EmailUser.create(:givenname => "Ethan", :surname => "Waldo", :email => "ewaldo@talho.org")
+=> #<EmailUser id: 1, givenname: "Ethan", surname: "Waldo", email: "ewaldo@talho.org", created_at: "2011-03-16 22:51:19", updated_at: "2011-03-16 22:51:21">
+
+> EmailUser.first
+=> #<EmailUser id: 1, givenname: "Ethan", surname: "Waldo", email: "ewaldo@talho.org", created_at: "2011-03-16 22:51:19", updated_at: "2011-03-16 22:51:21">
+
+> User.first
+=> #<User id: 1, givenname: "Ethan", surname: "Waldo", type: "EmailUser", created_at: "2011-03-16 22:51:19", updated_at: "2011-03-16 22:51:21">
+
+> user.surname = "Weirdo"
+=> "Weirdo"
+
+> user.save
+=> true
+
+> EmailUser.first
+=> #<EmailUser id: 1, givenname: "Ethan", surname: "Weirdo", email: "ewaldo@talho.org", created_at: "2011-03-16 22:51:19", updated_at: "2011-03-16 22:51:47">
+
+> user.destroy
+=> #<EmailUser id: 1, givenname: "Ethan", surname: "Weirdo", email: "ewaldo@talho.org", created_at: "2011-03-16 22:51:19", updated_at: "2011-03-16 22:51:47">
+
+> EmailUser.first
+=> nil
+
+> User.first
+=> nil
+
+Copyright (c) 2011 Ethan Waldo, released under the MIT license
