@@ -5,10 +5,12 @@ Pin Cushion adds true Multiple Table Inheritance via a simple ActiveRecord::Migr
 
 Pin Cushion was inspired by CITIEsForRAILS http://altrabio.github.com/CITIEsForRAILS/ which is a very nice solution but has some compatibility issues and is potentially sensitive to future changes in ActiveRecord.  Pin Cushion works almost entirely at the database level using views and some advanced database trigger features for INSERT/UPDATE/DELETE commands.
 
-Pin Cushion currently only supports single-level inheritance though multi-level inheritance shouldn't be too difficult to add at a future date.  Pin Cushion is currently only supports PostgreSQL since PostgreSQL allows the interception of INSERT/UPDATE/DELETE calls to overriding triggers (i.e. rules).  Although MySQL supports triggers, it is unknown at this time if it can override INSERT/UPDATE/DELETE calls to the view without throwing an error back to ActiveRecord.  Oracle should also be able to support these capabilities and hopefully someone who is interested in this solution for their Oracle tables will help add that in.  Pin Cushion would likely not support NoSQL solutions which is likely fine since Pin Cushion addresses designs more likely seen in relational systems.
+Pin Cushion currently only supports single-level inheritance though multi-level inheritance shouldn't be too difficult to add at a future date.  Pin Cushion currently only supports PostgreSQL since PostgreSQL allows the interception of INSERT/UPDATE/DELETE calls to overriding triggers (i.e. rules).  Although MySQL supports triggers, it is unknown at this time if it can override INSERT/UPDATE/DELETE calls to the view without throwing an error back to ActiveRecord.  Oracle should also be able to support these capabilities and hopefully someone who is interested in this solution for their Oracle tables will help add that in.  Pin Cushion would likely not support NoSQL solutions which is likely fine since Pin Cushion addresses designs more likely seen in relational systems.
 
 Example
 =======
+
+For an already created Rails example using Pin Cushion see https://github.com/Dishwasha/pin_cushion_example
 
 # Parent Table ActiveRecord Migration
 CreateParentTable < ActiveRecord::Migration
