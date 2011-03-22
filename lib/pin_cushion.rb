@@ -179,9 +179,11 @@ module PinCushion
       end
       inheritance_column = "#{self.class.to_s}_type"
 
-      class_eval do
-        def base_class
-          self.class
+      class << self
+        self.class_eval do
+          def base_class
+            self
+          end
         end
       end
     end
