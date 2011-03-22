@@ -31,12 +31,14 @@ class ActiveRecord::Migration
       foreign_key = "#{supertable_name.singularize}_id"
       exclusions = ['id',foreign_key]
 
+      add_column(supertable_name.to_sym, "#{superclass_name.downcase.to_sym}_type", :string) unless ActiveRecord::Base.connection.columns(supertable_name).map(&:name).include?("#{superclass_name.downcase}_type")
+
       # A view is created based on the combined tables of the class and its superclass.  This is what ActiveRecord sees and interacts with on CREATE/UPDATE/DELETE
       # The superclass' id will be the primary id though the child class doesn't need an id and should have an index on the foreign key
       # The child class should set_table_name to whatever table_prefix + table_name is
-      execute "CREATE OR REPLACE VIEW #{table_prefix + table_name} AS SELECT #{GetTableColumnsSQLPartial supertable_name, ['type']}, \
+      execute "CREATE OR REPLACE VIEW #{table_prefix + table_name} AS SELECT #{GetTableColumnsSQLPartial supertable_name}, \
         #{GetTableColumnsSQLPartial table_name, exclusions} FROM #{supertable_name}, #{table_name} WHERE #{supertable_name}.id = #{table_name}.#{foreign_key} \
-        #{GetConditionsSQLPartial(options[:conditions])};"
+        AND #{superclass_name.downcase}_type='#{class_name}' #{GetConditionsSQLPartial(options[:conditions])};"
 
       supertable_columns = ActiveRecord::Base.connection.columns(supertable_name).map(&:name)
       table_columns = ActiveRecord::Base.connection.columns(table_name).map(&:name)
@@ -72,7 +74,7 @@ class ActiveRecord::Migration
           case column
           when 'id'
             '(SELECT nextval(\'' + sequence_name + '\'))'
-          when 'type'
+          when superclass_name.downcase + '_type'
             '\'' + class_name + '\''
           else
             'NEW.' + column
@@ -97,7 +99,7 @@ class ActiveRecord::Migration
       # since ActiveRecord does an updated after insert for those callbacks
       execute "CREATE OR REPLACE RULE #{table_prefix + table_name}_upd AS ON UPDATE TO #{table_prefix + table_name} DO INSTEAD ( \
         UPDATE #{table_name} SET #{(table_columns - exclusions).map{|column| column + '=NEW.' + column}.join(',')} WHERE #{foreign_key}=OLD.id; \
-        UPDATE #{supertable_name} SET #{(supertable_columns - ['id','type']).map{|column| column + '=NEW.' + column}.join(',')} WHERE id=OLD.id;);"
+        UPDATE #{supertable_name} SET #{(supertable_columns - ['id',superclass_name.downcase + '_type']).map{|column| column + '=NEW.' + column}.join(',')} WHERE id=OLD.id;);"
 
       # Since PostgreSQL doesn't yet support deletes on a view with table joins, we are creating a rule to intercept the DELETE and
       # manually delete the child table record
@@ -135,6 +137,8 @@ class ActiveRecord::Migration
       table_name = options[:table_name]
       table_prefix = options[:table_prefix]
 
+      remove_column(supertable_name.to_sym, "#{superclass_name.downcase.to_sym}_type")
+
       execute "DROP TRIGGER #{table_prefix + table_name}_del_trigger ON #{table_name};"
       execute "DROP FUNCTION #{table_prefix + table_name}_del_function();"
       execute "DROP RULE #{table_prefix + table_name}_del ON #{table_prefix + table_name};"
@@ -156,3 +160,32 @@ class ActiveRecord::Migration
     end
   end
 end
+
+module PinCushion
+  def self.included(base)
+    base.send :extend, ClassMethods
+  end
+
+  module ClassMethods
+    def acts_as_MTI(options = {})
+      if superclass == ::ActiveRecord::Base
+        class_eval do
+          def superclass
+            self.class.superclass
+          end
+        end
+      else
+        set_table_name "view_#{self.to_s.pluralize.underscore}"
+      end
+      inheritance_column = "#{self.class.to_s}_type"
+
+      class_eval do
+        def base_class
+          self.class
+        end
+      end
+    end
+  end
+end
+
+ActiveRecord::Base.send :include, PinCushion

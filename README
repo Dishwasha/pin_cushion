@@ -3,9 +3,11 @@ PinCushion
 
 Pin Cushion adds true Multiple Table Inheritance via a simple ActiveRecord::Migration command that is totally agnostic to ActiveRecord.
 
-Pin Cushion was inspired by CITIEsForRAILS http://altrabio.github.com/CITIEsForRAILS/ which is a very nice solution but has some compatibility issues and is potentially sensitive to future changes in ActiveRecord.  Pin Cushion works almost entirely at the database level using views and some advanced database trigger features for INSERT/UPDATE/DELETE commands.
+Pin Cushion was inspired by CITIEsForRAILS http://altrabio.github.com/CITIEsForRAILS/.  Unfortunately the majority of MTI solutions have some compatibility issues and are potentially sensitive to future changes in ActiveRecord.  Pin Cushion works almost entirely at the database level using views and some advanced database trigger features for INSERT/UPDATE/DELETE commands.
 
-Pin Cushion currently only supports single-level inheritance though multi-level inheritance shouldn't be too difficult to add at a future date.  Pin Cushion currently only supports PostgreSQL since PostgreSQL allows the interception of INSERT/UPDATE/DELETE calls to overriding triggers (i.e. rules).  Although MySQL supports triggers, it is unknown at this time if it can override INSERT/UPDATE/DELETE calls to the view without throwing an error back to ActiveRecord.  Oracle should also be able to support these capabilities and hopefully someone who is interested in this solution for their Oracle tables will help add that in.  Pin Cushion would likely not support NoSQL solutions which is likely fine since Pin Cushion addresses designs more likely seen in relational systems.
+Pin Cushion currently only supports single-level multi-table inheritance though multi-level multi-table inheritance shouldn't be too difficult to add at a future date.  Pin Cushion currently only supports PostgreSQL since PostgreSQL allows the interception of INSERT/UPDATE/DELETE calls to overriding triggers (i.e. rules).  Although MySQL supports triggers, it is unknown at this time if it can override INSERT/UPDATE/DELETE calls to the view without throwing an error back to ActiveRecord.  Oracle should also be able to support these capabilities and hopefully someone who is interested in this solution for their Oracle tables will help add that in.  Pin Cushion would likely not support NoSQL solutions which is typically fine since Pin Cushion addresses designs more likely seen in relational systems.
+
+It is recommended that a polymorphic association be used for any models that want to make use of your child model.  This will coincide with what is required in a Single Table Inheritance (STI) ActiveRecord solution.  The inheritance_column by default is 'user_type' where the parent class is called User.
 
 Example
 =======
@@ -18,7 +20,6 @@ CreateParentTable < ActiveRecord::Migration
     create_table :users do |t|
       t.string, :givenname
       t.string, :surname
-      t.string, :type
       t.timestamps
     end
   end
@@ -49,13 +50,14 @@ end
 
 # The parent class
 class User < ActiveRecord::Base
+  acts_as_MTI
 end
 
 # The child class
 # A view is created by Pin Cushion with the intended table name prefixed with view_
 # This is simple enough to not warrant an "acts_as_..." mixin
 class EmailUser < User
-  set_table_name "view_email_users"
+  acts_as_MTI
 end
 
 After migrations are run, the two tables should look like one under the child model:
