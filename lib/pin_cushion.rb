@@ -137,8 +137,6 @@ class ActiveRecord::Migration
       table_name = options[:table_name]
       table_prefix = options[:table_prefix]
 
-      remove_column(supertable_name.to_sym, "#{superclass_name.downcase.to_sym}_type")
-
       execute "DROP TRIGGER #{table_prefix + table_name}_del_trigger ON #{table_name};"
       execute "DROP FUNCTION #{table_prefix + table_name}_del_function();"
       execute "DROP RULE #{table_prefix + table_name}_del ON #{table_prefix + table_name};"
@@ -147,6 +145,8 @@ class ActiveRecord::Migration
       execute "DROP FUNCTION GetInserted#{superclass_name}(int8);"
       execute "DROP TYPE #{table_prefix + table_name}_type;"
       execute "DROP VIEW #{table_prefix + table_name};"
+
+      remove_column(supertable_name.to_sym, "#{superclass_name.downcase.to_sym}_type")
     end
 
     private
