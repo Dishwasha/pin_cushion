@@ -13,10 +13,10 @@ class ActiveRecord::Migration
     #   set_table_name "view_cd"
     # end
     def CreateMTIFor(classname, options={})
-      options[:superclass_name] = classname.superclass.to_s
+      options[:superclass_name] ||= classname.superclass.to_s
       options[:class_name] = classname.to_s
-      options[:supertable_name] = classname.superclass.table_name
-      options[:table_name] = classname.table_name.gsub('view_','')
+      options[:supertable_name] ||= classname.superclass.table_name
+      options[:table_name] ||= classname.table_name.gsub('view_','')
       options[:table_prefix] = options[:table_prefix] || "view_"
       CreateInheritedTable(options)
     end
@@ -61,7 +61,7 @@ class ActiveRecord::Migration
       }.join(',')});"
 
       # This function is used in the returning statements to return the recently inserted data in to the joined tables
-      execute "CREATE OR REPLACE FUNCTION GetInserted#{superclass_name}(int8) RETURNS SETOF #{table_prefix + table_name}_type AS $$ SELECT * FROM #{table_prefix + table_name} WHERE id = $1 $$ LANGUAGE SQL;"
+      execute "CREATE OR REPLACE FUNCTION GetInserted#{class_name}(int8) RETURNS SETOF #{table_prefix + table_name}_type AS $$ SELECT * FROM #{table_prefix + table_name} WHERE id = $1 $$ LANGUAGE SQL;"
 
       # Since PostgreSQL doesn't yet support inserts on a view with table joins, we are creating a rule to intercept the INSERT and
       # manually insert the record in to the individual tables
@@ -90,7 +90,7 @@ class ActiveRecord::Migration
             'NEW.' + column
           end
         }.join(',')}) \
-        RETURNING #{ActiveRecord::Base.connection.columns(table_prefix + table_name).map{|column| '(SELECT ' + column.name + ' FROM GetInserted' + superclass_name + '(currval(\'' + sequence_name + '\')))'}.join(',')});"
+        RETURNING #{ActiveRecord::Base.connection.columns(table_prefix + table_name).map{|column| '(SELECT ' + column.name + ' FROM GetInserted' + class_name + '(currval(\'' + sequence_name + '\')))'}.join(',')});"
 
       # Since PostgreSQL doesn't yet support updates on a view with table joins, we are creating a rule to intercept the UPDATE and
       # manually update the records in the individual tables
@@ -122,10 +122,10 @@ class ActiveRecord::Migration
     end
 
     def DropMTIFor(classname, options={})
-      options[:superclass_name] = classname.superclass.to_s
+      options[:superclass_name] ||= classname.superclass.to_s
       options[:class_name] = classname.to_s
-      options[:supertable_name] = classname.superclass.table_name
-      options[:table_name] = classname.table_name.gsub('view_','')
+      options[:supertable_name] ||= classname.superclass.table_name
+      options[:table_name] ||= classname.table_name.gsub('view_','')
       options[:table_prefix] = options[:table_prefix] || "view_"
       DropInheritedTable(options)
     end
@@ -142,11 +142,11 @@ class ActiveRecord::Migration
       execute "DROP RULE #{table_prefix + table_name}_del ON #{table_prefix + table_name};"
       execute "DROP RULE #{table_prefix + table_name}_upd ON #{table_prefix + table_name};"
       execute "DROP RULE #{table_prefix + table_name}_ins ON #{table_prefix + table_name};"
-      execute "DROP FUNCTION GetInserted#{superclass_name}(int8);"
+      execute "DROP FUNCTION GetInserted#{class_name}(int8);"
       execute "DROP TYPE #{table_prefix + table_name}_type;"
       execute "DROP VIEW #{table_prefix + table_name};"
 
-      remove_column(supertable_name.to_sym, "#{superclass_name.downcase.to_sym}_type")
+      #remove_column(supertable_name.to_sym, "#{superclass_name.downcase.to_sym}_type")
     end
 
     private
